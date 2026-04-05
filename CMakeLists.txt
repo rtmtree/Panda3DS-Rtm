@@ -81,6 +81,21 @@ if(IOS)
     set(ENABLE_LUAJIT OFF)
 endif()
 
+# Emscripten / WebAssembly build: disable everything the browser can't support
+if(EMSCRIPTEN)
+    set(ENABLE_DISCORD_RPC OFF)
+    set(ENABLE_LUAJIT OFF)
+    set(ENABLE_FASTMEM OFF)
+    set(ENABLE_VULKAN OFF)
+    set(ENABLE_METAL OFF)
+    set(ENABLE_QT_GUI OFF)
+    set(ENABLE_HTTP_SERVER OFF)
+    set(ENABLE_RENDERDOC_API OFF)
+    set(ENABLE_GIT_VERSIONING OFF)
+    set(OPENGL_PROFILE "OpenGLES" CACHE STRING "" FORCE)
+    message(STATUS "Emscripten build: targeting WebAssembly + WebGL2")
+endif()
+
 set(OPENGL_PROFILE ${DEFAULT_OPENGL_PROFILE} CACHE STRING "OpenGL profile to use if OpenGL is enabled. Valid values are 'OpenGL' and 'OpenGLES'.")
 set_property(CACHE OPENGL_PROFILE PROPERTY STRINGS OpenGL OpenGLES)
 
@@ -177,7 +192,7 @@ if(ENABLE_DISCORD_RPC AND NOT ANDROID)
     include_directories(third_party/discord-rpc/include)
 endif()
 
-if (NOT ANDROID)
+if (NOT ANDROID AND NOT EMSCRIPTEN)
     if (USE_SYSTEM_SDL2)
         find_package(SDL2 CONFIG REQUIRED)
         target_link_libraries(AlberCore PUBLIC SDL2::SDL2)
@@ -189,6 +204,7 @@ if (NOT ANDROID)
         target_link_libraries(AlberCore PUBLIC SDL2-static)
     endif()
 endif()
+# Emscripten provides SDL2 via -sUSE_SDL=2; no bundled SDL2 needed
 
 add_subdirectory(third_party/fmt)
 add_subdirectory(third_party/toml11)
@@ -850,12 +866,37 @@ if(NOT BUILD_HYDRA_CORE AND NOT BUILD_LIBRETRO_CORE)
         qt_add_resources(TRANSLATIONS ${TRANSLATIONS_QRC})
         set(APP_RESOURCES ${APP_RESOURCES} ${TRANSLATIONS})
     else()
-        set(FRONTEND_SOURCE_FILES src/panda_sdl/main.cpp src/panda_sdl/frontend_sdl.cpp src/panda_sdl/mappings.cpp)
-        set(FRONTEND_HEADER_FILES "include/panda_sdl/frontend_sdl.hpp")
+        if(EMSCRIPTEN)
+            # Web / WASM frontend — uses its own entry point, no native SDL2 needed
+            set(FRONTEND_SOURCE_FILES src/panda_web/main.cpp)
+            set(FRONTEND_HEADER_FILES "")
+        else()
+            set(FRONTEND_SOURCE_FILES src/panda_sdl/main.cpp src/panda_sdl/frontend_sdl.cpp src/panda_sdl/mappings.cpp)
+            set(FRONTEND_HEADER_FILES "include/panda_sdl/frontend_sdl.hpp")
+        endif()
     endif()
 
     target_link_libraries(Alber PRIVATE AlberCore)
     target_sources(Alber PRIVATE ${FRONTEND_SOURCE_FILES} ${FRONTEND_HEADER_FILES} ${GL_CONTEXT_SOURCE_FILES} ${APP_RESOURCES})
+
+    if(EMSCRIPTEN)
+        set_target_properties(Alber PROPERTIES OUTPUT_NAME "panda3ds" SUFFIX ".js")
+
+        target_link_options(Alber PRIVATE
+            "-sUSE_SDL=2"
+            "-sFULL_ES3=1"
+            "-sALLOW_MEMORY_GROWTH=1"
+            "-sINITIAL_MEMORY=268435456"   # 256 MB – enough for 3DS FCRAM + overhead
+            "-sSTACK_SIZE=8388608"          # 8 MB stack
+            "-sWASM=1"
+            "-sMODULARIZE=1"
+            "-sEXPORT_NAME=createPanda3DS"
+            "-sEXPORTED_FUNCTIONS=[\"_main\",\"_loadROMData\",\"_isROMLoaded\"]"
+            "-sEXPORTED_RUNTIME_METHODS=[\"ccall\",\"cwrap\",\"FS\",\"allocate\",\"intArrayFromString\",\"ALLOC_NORMAL\"]"
+            "-sFORCE_FILESYSTEM=1"
+            "--use-preload-plugins"
+        )
+    endif()
 elseif(BUILD_HYDRA_CORE)
     target_compile_definitions(AlberCore PRIVATE PANDA3DS_HYDRA_CORE=1)
     include_directories(third_party/hydra_core/include)

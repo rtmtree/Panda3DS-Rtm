@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "panda3ds-web",
+      "runtimeExecutable": "/Users/bank23232525/.nvm/versions/node/v18.12.1/bin/node",
+      "runtimeArgs": ["web/node_modules/.bin/vite", "--port", "5173"],
+      "port": 5173
+    }
+  ]
+}

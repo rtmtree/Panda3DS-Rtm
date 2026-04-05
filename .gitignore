@@ -79,3 +79,6 @@ CMakeSettings.json
 .idea/
 # VSC files
 /.vscode/
+
+
+web/node_modules/
