@@ -82,3 +82,4 @@ CMakeSettings.json
 
 
 web/node_modules/
+build_wasm

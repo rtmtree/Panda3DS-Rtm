@@ -1,6 +1,6 @@
 #include "emulator.hpp"
 
-#if !defined(__ANDROID__) && !defined(__LIBRETRO__)
+#if !defined(__ANDROID__) && !defined(__LIBRETRO__) && !defined(__EMSCRIPTEN__)
 #include <SDL_filesystem.h>
 #endif
 
@@ -203,6 +203,8 @@ std::filesystem::path Emulator::getAppDataRoot() {
 
 #ifdef __ANDROID__
 	appDataPath = getAndroidAppPath();
+#elif defined(__EMSCRIPTEN__)
+	appDataPath = std::filesystem::path("/save");
 #else
 	char* appData;
 	if (!config.usePortableBuild) {

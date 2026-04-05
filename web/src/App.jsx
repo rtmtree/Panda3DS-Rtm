@@ -33,7 +33,7 @@ function loadEmscriptenModule() {
   return moduleFactoryPromise;
 }
 
-const FIXED_ROM_URL = 'http://localhost:8008/monhun.3ds';
+const FIXED_ROM_URL = 'http://localhost:8008/monhundemo.3ds';
 
 export default function App() {
   const canvasRef = useRef(null);
@@ -93,7 +93,7 @@ export default function App() {
         const params = new URLSearchParams(window.location.search);
         if (params.get('loadFixedRom') === 'true') {
           setStatus('loading-rom');
-          setRomName('monhun.3ds');
+          setRomName('monhundemo.3ds');
           try {
             const res = await fetch(FIXED_ROM_URL);
             if (!res.ok) throw new Error(`Server returned ${res.status} for ${FIXED_ROM_URL}`);

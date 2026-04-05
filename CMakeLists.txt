@@ -93,6 +93,8 @@ if(EMSCRIPTEN)
     set(ENABLE_RENDERDOC_API OFF)
     set(ENABLE_GIT_VERSIONING OFF)
     set(OPENGL_PROFILE "OpenGLES" CACHE STRING "" FORCE)
+    # Emscripten's consteval support is incomplete; disable it in fmt
+    add_compile_definitions(FMT_USE_CONSTEVAL=0)
     message(STATUS "Emscripten build: targeting WebAssembly + WebGL2")
 endif()
 
@@ -312,14 +314,14 @@ else()
   endif()
 endif()
 
-if (HOST_X64)
+if (HOST_X64 AND NOT EMSCRIPTEN)
     add_subdirectory(third_party/xbyak) # Add xbyak submodule for x86 JITs
     include_directories(third_party/xbyak)
     add_compile_definitions(PANDA3DS_DYNAPICA_SUPPORTED)
     add_compile_definitions(PANDA3DS_X64_HOST)
 endif()
 
-if (HOST_ARM64)
+if (HOST_ARM64 AND NOT EMSCRIPTEN)
     add_subdirectory(third_party/oaknut) # Add Oaknut submodule for arm64 JITs
     include_directories(third_party/oaknut/include)
     add_compile_definitions(PANDA3DS_DYNAPICA_SUPPORTED)
@@ -343,9 +345,8 @@ if(ENABLE_RENDERDOC_API)
     add_compile_definitions(PANDA3DS_ENABLE_RENDERDOC)
 endif()
 
-if(HOST_X64 OR HOST_ARM64)
+if(HOST_X64 OR HOST_ARM64 OR EMSCRIPTEN)
     set(DYNARMIC_TESTS OFF)
-    #set(DYNARMIC_NO_BUNDLED_FMT ON)
     set(DYNARMIC_FRONTENDS "A32" CACHE STRING "")
     add_subdirectory(third_party/dynarmic)
     add_compile_definitions(CPU_DYNARMIC)
@@ -868,7 +869,8 @@ if(NOT BUILD_HYDRA_CORE AND NOT BUILD_LIBRETRO_CORE)
     else()
         if(EMSCRIPTEN)
             # Web / WASM frontend — uses its own entry point, no native SDL2 needed
-            set(FRONTEND_SOURCE_FILES src/panda_web/main.cpp)
+            # mappings.cpp provides InputMappings::defaultKeyboardMappings()
+            set(FRONTEND_SOURCE_FILES src/panda_web/main.cpp src/panda_sdl/mappings.cpp)
             set(FRONTEND_HEADER_FILES "")
         else()
             set(FRONTEND_SOURCE_FILES src/panda_sdl/main.cpp src/panda_sdl/frontend_sdl.cpp src/panda_sdl/mappings.cpp)
@@ -881,6 +883,9 @@ if(NOT BUILD_HYDRA_CORE AND NOT BUILD_LIBRETRO_CORE)
 
     if(EMSCRIPTEN)
         set_target_properties(Alber PROPERTIES OUTPUT_NAME "panda3ds" SUFFIX ".js")
+
+        # USE_SDL=2 must be a compile flag as well so Emscripten exposes SDL2 headers
+        target_compile_options(Alber PRIVATE "-sUSE_SDL=2")
 
         target_link_options(Alber PRIVATE
             "-sUSE_SDL=2"

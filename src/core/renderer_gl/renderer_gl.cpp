@@ -722,7 +722,7 @@ OpenGL::Texture RendererGL::getTexture(Texture& tex) {
 			return blankTexture;
 		}
 
-		const auto textureData = std::span{startPointer, tex.sizeInBytes()};  // Get pointer to the texture data in 3DS memory
+		const auto textureData = std::span{startPointer, static_cast<size_t>(tex.sizeInBytes())};  // Get pointer to the texture data in 3DS memory
 		Texture& newTex = textureCache.add(tex);
 		newTex.decodeTexture(textureData);
 
